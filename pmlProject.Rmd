@@ -1,0 +1,178 @@
+---
+title: "pmlProject"
+author: "abe hashemi"
+date: "Sunday, July 26, 2015"
+output: html_document
+---
+
+ 
+Load necessary libraries:
+
+
+```{r}
+library(caret)
+library(randomForest)
+library(rpart)     # For regression trees and partition
+library(rpart.plot) 	# For plotting Decision Tree 
+
+```
+
+
+
+ set the overall seed for reproduceability
+ 
+ 
+
+```{r}
+set.seed(1234)
+
+
+```
+
+
+
+Create project data directory, if none exists:
+
+```{r}
+if(!file.exists("./pData")){dir.create("./pData")}
+
+```
+
+set the data file urls:
+
+```{r}
+dTrainUrl <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+dTestUrl <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+
+```
+
+load the data files:
+
+```{r}
+pmlTrainDs <- read.csv(url(dTrainUrl), na.strings=c("NA","#DIV/0!", ""))
+pmlTestDs <- read.csv(url(dTestUrl))
+
+
+```
+
+ 
+Check the structure of the data sets:
+
+```{r}
+str(pmlTrainDs)
+str(pmlTestDs)
+
+
+```
+
+
+
+Clean out all NA variables:
+```{r}
+
+pmlTrainDs <- pmlTrainDs[,colSums(is.na(pmlTrainDs)) == 0]
+pmlTestDs <- pmlTestDs[,colSums(is.na(pmlTestDs)) == 0]
+
+```
+
+Clean out columns 1-7 as irrelevant to this analysis:
+```{r}
+pmlTrainDs <- pmlTrainDs[,-c(1:7)]
+pmlTestDs <- pmlTestDs[,-c(1:7)]
+
+```
+
+The clean data:
+
+```{r}
+str(pmlTrainDs)
+str(pmlTestDs)
+
+```
+
+Divide training data into a subTrain and SubTest random samples of 70:30 size ratios:
+```{r}
+subtrainChoice <- createDataPartition(y=pmlTrainDs$classe, p=0.70, list=FALSE)
+pmlSubtrainDs <- pmlTrainDs[subtrainChoice,]
+pmlSubtestDs <- pmlTrainDs[-subtrainChoice,]
+
+```
+The subtrain and subtest data:
+```{r}
+
+str(pmlTrainDs)
+str(pmlTestDs)
+
+```
+
+Model first based on Decision Tree Classification:
+
+```{r}
+dcPmlModel <- rpart(classe ~ ., data=pmlSubtrainDs, method="class")
+rpart.plot(dcPmlModel, main="PML Classification Tree", extra=107)  # Plot the tree
+
+```
+
+Predict the subtest data set based on this decision tree:
+
+```{r}
+dcPmlPrediction <- predict(dcPmlModel, pmlSubtestDs, type = "class")
+
+```
+
+Get the confusion matrix for decision tree:
+
+```{r}
+dcPmlCm <- confusionMatrix(dcPmlPrediction, pmlSubtestDs$classe)
+
+```
+
+# Now let's look at decision forests for more accuracy:
+```{r}
+dfPmlModel <- randomForest(classe ~. , data=pmlSubtrainDs, method="class")
+
+```
+
+Predict the subtest data set based on this decision forest:
+
+```{r}
+dfPmlPredition <- predict(dfPmlModel, pmlSubtestDs, type = "class")
+
+```
+
+Get the confusion matrix for decision tree model:
+
+```{r}
+confusionMatrix(dfPmlPredition, pmlSubtestDs$classe)
+
+```
+#Conclusion
+Apply the better accuracy decision forest to the test data set:
+predict outcome levels on the original Testing data set using Random Forest algorithm
+
+```{r}
+pmlPredict <- predict(dfPmlModel, pmlTestDs, type="class")
+
+```
+
+
+# Save results:
+Write files for submission:
+
+```{r}
+pml_write_files = function(x){
+  n = length(x)
+  for(i in 1:n){
+    filename = paste0("problem_id_",i,".txt")
+    write.table(x[i],file=filename,quote=FALSE,row.names=FALSE,col.names=FALSE)
+  }
+}
+
+pml_write_files(pmlPredict)
+
+```
+
+# References:
+[1] Velloso, E.; Bulling, A.; Gellersen, H.; Ugulino, W.; Fuks, H. Qualitative Activity Recognition of Weight Lifting Exercises. Proceedings of 4th International Conference in Cooperation with SIGCHI (Augmented Human '13) . Stuttgart, Germany: ACM SIGCHI, 2013.
+
+[2] Krzysztof Gra??bczewski and Norbert Jankowski. Feature Selection with Decision Tree Criterion.
